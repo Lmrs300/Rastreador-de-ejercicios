@@ -48,7 +48,6 @@ app.route("/api/users").post((req,res)=>{
   const newUser=new User({username:req.body.username})
 
   newUser.save().then(data=>{
-    console.log("Usuario agregado")
     res.json(data)
   })
 })
@@ -62,19 +61,19 @@ app.route("/api/users").post((req,res)=>{
 app.route("/api/users/:_id/exercises").post((req,res)=>{
   const userId=req.params._id
 
-  let {description,duration,date}=req.body
+  const {description,duration,date}=req.body
 
-  if(date==""){
-    date=new Date().toDateString()
+  if(date=="" || date==null || new Date(date).toDateString() === "Invalid Date"){
+    var formatDate=new Date().toDateString()
   }else{
-    date=new Date(date).toDateString()
+    var formatDate=new Date(date).toDateString()
   }
 
   User.findById(userId).then(data=>{
     if(data==null){
       console.log("Error: Usuario no encontrado")
     }else{
-      const newExercise=new Exercise({userId:userId,description:description,duration:Number(duration),date:date})
+      const newExercise=new Exercise({userId:userId,description:description,duration:Number(duration),date:formatDate})
 
       newExercise.save().then((data)=>{
         Exercise.findById(data._id).populate('userId').then(exercise=>{
@@ -96,7 +95,64 @@ app.route("/api/users/:_id/exercises").post((req,res)=>{
   
 })
 
+
 app.get("/api/users/:_id/logs",(req,res)=>{
+const userId=req.params._id
+
+
+
+  User.findById(userId).then((user)=>{
+    if(user){
+      const {from,to,limit}=req.query
+
+      if(from==undefined && to==undefined && limit==undefined){
+        Exercise.find({userId:userId}).select({userId:0,_Id:0,__v:0}).then(exercises=>{
+          logObj={
+            username: user.username,
+            count: exercises.length,
+            _id: user._id,
+            log: exercises
+          }
+      
+          res.json(logObj)
+        })
+      }else {
+        console.log({from,to,limit})
+        if(limit){
+          Exercise.find({userId:userId}).select({userId:0,_Id:0,__v:0}).limit(limit).then(exercises=>{
+          
+            logObj={
+              username: user.username,
+              count: exercises.length,
+              _id: user._id,
+              log: exercises
+            }
+        
+            res.json(logObj)
+          })
+        }else{
+          Exercise.find({userId:userId}).select({userId:0,_Id:0,__v:0}).then(exercises=>{
+          
+            const exercisesInDate=exercises.filter(exer=>{
+              console.log(new Date(exer.date).getTime()>=new Date(from).getTime() && new Date(exer.date).getTime()<=new Date(to).getTime())
+              return new Date(exer.date).getTime()>=new Date(from).getTime() && new Date(exer.date).getTime()<=new Date(to).getTime()
+            })
+            
+            logObj={
+              username: user.username,
+              count: exercises.length,
+              _id: user._id,
+              log: exercisesInDate
+            }
+            console.log(logObj)
+            res.json(logObj)
+          })
+        }
+        
+      }
+      
+    }
+  })
 
 })
 
